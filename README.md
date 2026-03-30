@@ -1,141 +1,123 @@
 # Kafka-Flink Schema Consolidation
 
-A reference implementation of a **production-oriented pattern** for addressing schema proliferation in Apache Kafka and Apache Flink pipelines.
+A reference implementation of the discriminator-based schema consolidation pattern for Apache Kafka and Apache Flink pipelines.
 
-This repository demonstrates how to replace fragmented, one-to-one event schemas with a **consolidated schema** using discriminator-based routing and nullable attribute blocks, improving scalability, maintainability, and downstream usability.
+Demonstrates how to replace N fragmented event schemas with a single consolidated schema using a layered adapter design — separating pure transformation logic from Flink framework integration so each adapter can be unit tested without any cluster setup.
 
-This pattern is based on real-world streaming systems and is applicable to large-scale data infrastructure handling high-volume event streams.
+Companion to the InfoQ article: *The Schema Proliferation Problem in Kafka and Flink Pipelines: How to Solve It*
 
 ---
 
 ## The Problem
 
-When you map each Kafka event type to its own Flink schema and downstream table, things look clean at first. But as your event landscape grows, the cost compounds:
+When each Kafka event type maps to its own schema and downstream table, the system works — until it doesn't:
 
-- A change to a shared field requires updating N schemas  
-- Downstream consumers must union N tables to query related events  
-- Schema drift accumulates across independently maintained schemas  
-- Adding a new event variant introduces new schemas, tables, and transformation logic  
+- A shared field change requires updating N schemas and N adapters
+- Downstream consumers union N tables to answer a single question
+- Schema drift accumulates across independently maintained definitions
+- Adding a new event variant means a new schema, a new table, and new adapter code from scratch
 
-This repository demonstrates how to replace N fragmented schemas with a single **consolidated schema** using discriminator-based routing and nullable type-specific attribute blocks.
-
----
-
-## Impact
-
-In production systems, schema proliferation introduces significant operational overhead:
-
-- Query complexity increases due to multi-table joins and unions  
-- Schema changes must be replicated across multiple definitions  
-- Data inconsistencies emerge due to schema drift  
-- Onboarding new consumers becomes slower and error-prone  
-
-By consolidating schemas into a unified structure, this pattern:
-
-- Reduces query complexity to simple filter-based access  
-- Centralizes schema evolution into a single definition  
-- Improves data consistency across event types  
-- Enables faster downstream analytics and development workflows  
+In this ride-sharing domain example, 4 event types × 3 ride types = **12 fragmented schemas and 12 downstream tables**.
 
 ---
 
-## Before vs After
+## The Solution
 
-### Before: One Schema Per Event Type
+Collapse all variants into one consolidated schema. Use discriminator enum fields (`eventType`, `rideType`) to identify the variant. Use nullable attribute blocks to carry variant-specific data.
 
+**Result:** 12 schemas → 1. 12 tables → 1. Cross-variant queries need no UNION.
+
+```sql
+-- Before: required joining 12 tables
+-- After: one table, one filter
+SELECT * FROM driver_ride_activity
+WHERE event_type = 'RIDE_COMPLETED'
+  AND ride_type = 'SHARED'
 ```
-DriverRideAcceptedStandardEvent  -->  driver_ride_accepted_standard table
-DriverRideAcceptedSharedEvent    -->  driver_ride_accepted_shared table
-DriverRideAcceptedScheduledEvent -->  driver_ride_accepted_scheduled table
-DriverRideCompletedStandardEvent -->  driver_ride_completed_standard table
-DriverRideCompletedSharedEvent   -->  driver_ride_completed_shared table
-... (N schemas, N tables)
-```
-
----
-
-### After: One Consolidated Schema
-
-```
-All driver ride events  -->  DriverRideActivityRecord  -->  driver_ride_activity table
-```
-
----
-
-## The Pattern
-
-### 1. Discriminator Fields
-
-Every record carries explicit identifiers:
-
-```json
-{
-  "eventType": "RIDE_COMPLETED",
-  "rideType": "SHARED"
-}
-```
-
-Consumers filter using these fields instead of querying multiple tables.
-
----
-
-### 2. Nullable Type-Specific Attribute Blocks
-
-Variant-specific fields are grouped into nullable structures:
-
-```json
-{
-  "sharedRideAttributes": {
-    "passengerCount": 3,
-    "poolingScore": 0.87
-  },
-  "scheduledRideAttributes": null
-}
-```
-
-Only relevant blocks are populated per record.
-
----
-
-### 3. Flink Adapter Layer
-
-A Flink transformation layer performs consolidation:
-
-1. Identify event type from Kafka metadata  
-2. Populate shared fields  
-3. Set discriminator fields  
-4. Populate relevant attribute block  
-5. Set all other blocks to null  
-6. Serialize into unified schema  
 
 ---
 
 ## Architecture
 
 ```
-Kafka Topics
-    |
-    | (raw events: DriverRideAcceptedStandard, etc.)
-    v
+Kafka Topics (4 topics × 3 ride types = 12 fragmented event variants)
+    │
+    ▼
 Flink Job
-    |
-    +--> KafkaEventConsumer
-    |         |
-    |         v
-    |    EventTypeRouter
-    |         |
-    |         v
-    |    ConsolidationAdapter
-    |         |
-    |         v
-    |    AvroSerializer
-    |
-    v
+    │
+    ├── EventTypeRouter          (enriches raw event with _eventType, _rideType metadata)
+    │
+    ├── ConsolidationAdapter     (Flink MapFunction — reads discriminators, delegates to registry)
+    │         │
+    │         ▼
+    │   AdapterRegistry          (maps (RideEventType, RideType) → RecordAdapter)
+    │         │
+    │         ├── StandardRideAcceptedAdapter
+    │         ├── SharedRideAcceptedAdapter
+    │         ├── ScheduledRideAcceptedAdapter
+    │         ├── ... (12 adapters total, one per variant)
+    │
+    ▼
 S3 / Data Lake
-    |
-    v
-driver_ride_activity (single table)
+    └── driver_ride_activity     (single consolidated table)
 ```
+
+---
+
+## Two-Layer Design
+
+The key architectural decision is separating transformation logic from framework integration.
+
+**Layer 1 — RecordAdapter (pure Java, no Flink dependency)**
+
+Each source event type has a dedicated adapter implementing `RecordAdapter<S, T>`:
+
+```java
+public class SharedRideAcceptedAdapter
+        implements RecordAdapter<DriverRideAcceptedSharedEvent, ConsolidatedRecord> {
+
+    @Override
+    public ConsolidatedRecord adapt(String orgId, DriverRideAcceptedSharedEvent event) {
+        ConsolidatedRecord record = new ConsolidatedRecord();
+        record.setEventTime(event.getEventTime());
+        record.setDriverId(event.getDriverId());
+        record.setRideId(event.getRideId());
+        record.setCityId(event.getCityId());
+        record.setEventType(RideEventType.RIDE_ACCEPTED);
+        record.setRideType(RideType.SHARED);
+
+        SharedRideAttributes attrs = new SharedRideAttributes();
+        attrs.setPassengerCount(event.getPassengerCount());
+        attrs.setPoolingScore(event.getPoolingScore());
+        record.setSharedRideAttributes(attrs);
+        return record;
+    }
+}
+```
+
+No Flink import. Straightforward to unit test without any framework setup.
+
+**Layer 2 — ConsolidationAdapter (Flink integration)**
+
+```java
+public class ConsolidationAdapter implements MapFunction<Map<String, Object>, ConsolidatedRecord> {
+
+    private final AdapterRegistry adapterRegistry;
+
+    public ConsolidationAdapter(AdapterRegistry adapterRegistry) {
+        this.adapterRegistry = adapterRegistry;
+    }
+
+    @Override
+    public ConsolidatedRecord map(Map<String, Object> rawEvent) throws Exception {
+        RideEventType eventType = resolveEventType(rawEvent);
+        RideType rideType = resolveRideType(rawEvent);
+        return adapterRegistry.adapt("default", eventType, rideType, rawEvent);
+    }
+}
+```
+
+All transformation logic lives in Layer 1. This class only wires Flink's `MapFunction` contract to the registry.
 
 ---
 
@@ -144,90 +126,92 @@ driver_ride_activity (single table)
 ```
 kafka-flink-schema-consolidation/
 ├── src/
-│   └── main/
-│       ├── avro/
-│       │   ├── fragmented/
-│       │   └── consolidated/
-│       └── java/com/example/consolidation/
-│           ├── model/
-│           ├── adapter/
-│           └── job/
+│   ├── main/
+│   │   ├── avro/
+│   │   │   ├── fragmented/                         # Before: 3 separate schemas (showing the problem)
+│   │   │   │   ├── DriverRideAcceptedStandard.avsc
+│   │   │   │   ├── DriverRideAcceptedShared.avsc
+│   │   │   │   └── DriverRideAcceptedScheduled.avsc
+│   │   │   └── consolidated/                       # After: 1 unified schema
+│   │   │       └── DriverRideActivityRecord.avsc
+│   │   └── java/com/example/consolidation/
+│   │       ├── events/                             # 12 typed source event classes
+│   │       │   ├── BaseRideEvent.java
+│   │       │   ├── DriverRideAcceptedStandardEvent.java
+│   │       │   ├── DriverRideAcceptedSharedEvent.java
+│   │       │   ├── DriverRideAcceptedScheduledEvent.java
+│   │       │   └── ... (9 more for STARTED, COMPLETED, CANCELLED × 3 ride types)
+│   │       ├── adapter/
+│   │       │   ├── RecordAdapter.java              # Interface: adapt(orgId, event) → ConsolidatedRecord
+│   │       │   ├── AdapterRegistry.java            # Maps (RideEventType, RideType) → adapter
+│   │       │   ├── ConsolidationAdapter.java       # Flink MapFunction — delegates to registry
+│   │       │   ├── ConsolidatedRecord.java         # Output POJO (mirrors Avro schema)
+│   │       │   ├── SharedRideAttributes.java
+│   │       │   ├── ScheduledRideAttributes.java
+│   │       │   ├── StandardRideAcceptedAdapter.java
+│   │       │   ├── SharedRideAcceptedAdapter.java
+│   │       │   └── ... (9 more adapters)
+│   │       ├── model/
+│   │       │   ├── RideEventType.java              # Enum: RIDE_ACCEPTED, RIDE_STARTED, RIDE_COMPLETED, RIDE_CANCELLED
+│   │       │   └── RideType.java                   # Enum: STANDARD, SHARED, SCHEDULED
+│   │       └── job/
+│   │           ├── EventTypeRouter.java
+│   │           └── RideEventConsolidationJob.java
+│   └── test/
+│       └── java/com/example/consolidation/adapter/
+│           ├── SharedRideAcceptedAdapterTest.java  # Tests adapter in isolation — no Flink needed
+│           └── AdapterRegistryTest.java            # Verifies all 12 combinations route correctly
 ├── docs/
+│   └── schema-design.md
 ├── pom.xml
 └── README.md
 ```
 
 ---
 
-## Avro Schema: Before vs After
+## Consolidated Avro Schema
 
-### Before
-Multiple schemas with duplicated fields across variants.
-
-### After
-Single consolidated schema with shared fields and nullable attribute blocks.
-
----
-
-## Key Design Decisions
-
-### Why Avro?
-
-- Supports nullable fields with defaults  
-- Enables backward-compatible schema evolution  
-- Well-supported in Kafka + Flink ecosystems  
-
----
-
-### Why Discriminator Fields Instead of Union Types?
-
-Explicit discriminator fields:
-
-- simplify querying  
-- improve readability  
-- work well with SQL engines  
-
-```sql
-SELECT * FROM driver_ride_activity
-WHERE event_type = 'RIDE_COMPLETED'
-AND ride_type = 'SHARED'
+```json
+{
+  "type": "record",
+  "name": "DriverRideActivityRecord",
+  "fields": [
+    {"name": "eventTime",   "type": "long"},
+    {"name": "driverId",    "type": "string"},
+    {"name": "rideId",      "type": "string"},
+    {"name": "eventType",   "type": {"type": "enum", "name": "EventType",
+                             "symbols": ["RIDE_ACCEPTED","RIDE_STARTED","RIDE_COMPLETED","RIDE_CANCELLED"]}},
+    {"name": "rideType",    "type": {"type": "enum", "name": "RideType",
+                             "symbols": ["STANDARD","SHARED","SCHEDULED"]}},
+    {"name": "sharedRideAttributes",    "type": ["null", "SharedRideAttributes"],    "default": null},
+    {"name": "scheduledRideAttributes", "type": ["null", "ScheduledRideAttributes"], "default": null}
+  ]
+}
 ```
 
----
-
-### Extensibility
-
-Adding a new event type requires:
-
-1. Updating enum  
-2. Adding nullable attribute block  
-3. Updating adapter logic  
-
-No new schemas or tables are required.
+Discriminator enums are always populated. Nullable attribute blocks carry variant-specific data — exactly one is populated per record, the rest are null.
 
 ---
 
-## Trade-offs
+## Adding a New Ride Variant
 
-While consolidated schemas improve usability, they introduce trade-offs:
+To add a new variant (e.g. PREMIUM rides):
 
-- Wider schemas may increase storage footprint  
-- Serialization overhead may increase  
-- Schema governance becomes more important  
+1. Add `PREMIUM` to the `RideType` enum
+2. Create `DriverRide*PremiumEvent` classes in `events/` with the new fields
+3. Create `PremiumRide*Adapter` classes implementing `RecordAdapter`
+4. Add one `registry.register(...)` call per event type in `AdapterRegistry.withAllAdapters()`
+5. Add a `premiumRideAttributes` nullable block to the Avro schema
 
-This approach is most effective when event types share structural overlap and are frequently queried together.
+No existing adapters, consumers, or tables are touched.
 
 ---
 
-## When Not to Use This Pattern
+## Schema Evolution
 
-This pattern may not be suitable when:
+New attribute blocks must be nullable with `"default": null`. Existing consumers compiled against the old schema read new records and see null for the new block — they do not break and do not need to be redeployed.
 
-- Event types are structurally unrelated  
-- Events are rarely queried together  
-- Strict domain isolation is required  
-
-In such cases, separate schemas may provide better clarity.
+For Schema Registry compatibility, use `FULL` or `FULL_TRANSITIVE` mode. `BACKWARD` mode alone is not safe when adding new enum values, as a consumer compiled against the old schema may throw on an unknown symbol.
 
 ---
 
@@ -235,65 +219,46 @@ In such cases, separate schemas may provide better clarity.
 
 ### Prerequisites
 
-- Java 11+  
-- Apache Flink 1.17+  
-- Apache Kafka 3.x  
-- Maven 3.8+  
+- Java 11+
+- Maven 3.8+
+- Apache Flink 1.18+
+- Apache Kafka 3.x (only needed to run the job; not needed for tests)
 
----
+### Run the unit tests
+
+```bash
+mvn test
+```
+
+Tests run in isolation — no Kafka, no Flink cluster, no infrastructure required.
 
 ### Build
 
 ```bash
-mvn clean package
+mvn clean package -DskipTests
 ```
 
----
-
-### Run the Flink Job
+### Run the Flink job
 
 ```bash
 flink run -c com.example.consolidation.job.RideEventConsolidationJob \
-  target/kafka-flink-schema-consolidation-1.0.jar \
+  target/kafka-flink-schema-consolidation-1.0.0.jar \
   --kafka-bootstrap-servers localhost:9092 \
-  --input-topics driver-ride-accepted,driver-ride-completed \
   --output-path s3://your-bucket/driver_ride_activity \
   --checkpoint-interval 60000
 ```
 
 ---
 
-## Schema Evolution Example
+## Trade-offs
 
-Adding a new attribute block remains backward-compatible:
+**Wider records.** Nullable attribute blocks are empty for most records. Avro's null handling keeps serialization cost minimal, but at very high throughput it is worth benchmarking.
 
-```json
-{
-  "name": "luxuryRideAttributes",
-  "type": ["null", {
-    "type": "record",
-    "name": "LuxuryRideAttributes",
-    "fields": [
-      {"name": "vehicleClass", "type": "string"}
-    ]
-  }],
-  "default": null
-}
-```
+**Schema governance.** A consolidated schema owned by multiple teams needs clear ownership. A Schema Registry with enforced compatibility rules handles the mechanical side, but someone still needs to own what goes into the schema.
 
----
+**Debugging.** Filtering by `eventType` is an extra step that isn't needed when each event type has its own table. Easy to do, but a new habit to build.
 
-## Related Reading
-
-- Medium article (companion piece)  
-- Apache Avro docs  
-- Apache Flink docs  
-
----
-
-## Contributing
-
-Contributions welcome. Examples from other domains (IoT, finance, healthcare) are encouraged.
+**When not to use it.** This pattern makes sense when event types share structural overlap and are frequently queried together. If two event types have completely different fields and are never queried in the same context, consolidating them adds complexity with no benefit.
 
 ---
 
