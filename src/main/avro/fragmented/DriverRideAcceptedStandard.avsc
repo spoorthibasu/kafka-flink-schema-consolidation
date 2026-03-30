@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "DriverRideAcceptedStandard",
+  "namespace": "com.example.events.fragmented",
+  "doc": "Emitted when a driver accepts a standard (non-pooled, non-scheduled) ride request.",
+  "fields": [
+    {"name": "eventTime", "type": "long", "logicalType": "timestamp-millis", "doc": "Unix timestamp in milliseconds when the event occurred."},
+    {"name": "driverId", "type": "string", "doc": "Unique identifier for the driver."},
+    {"name": "rideId", "type": "string", "doc": "Unique identifier for the ride request."},
+    {"name": "cityId", "type": "string", "doc": "Identifier for the city where the ride is taking place."},
+    {"name": "pickupLat", "type": "double", "doc": "Latitude of the pickup location."},
+    {"name": "pickupLng", "type": "double", "doc": "Longitude of the pickup location."},
+    {"name": "estimatedDurationMinutes", "type": "int", "doc": "Estimated ride duration in minutes at time of acceptance."},
+    {"name": "estimatedFare", "type": "double", "doc": "Estimated fare in local currency at time of acceptance."}
+  ]
+}
