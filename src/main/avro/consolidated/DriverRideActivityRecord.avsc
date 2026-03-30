@@ -1,0 +1,138 @@
+{
+  "type": "record",
+  "name": "DriverRideActivityRecord",
+  "namespace": "com.example.events.consolidated",
+  "doc": "Consolidated schema for all driver ride activity events. Replaces separate schemas for each event type and ride type variant. Use the eventType and rideType discriminator fields to identify the specific event variant.",
+  "fields": [
+    {
+      "name": "eventTime",
+      "type": "long",
+      "logicalType": "timestamp-millis",
+      "doc": "Unix timestamp in milliseconds when the event occurred."
+    },
+    {
+      "name": "driverId",
+      "type": "string",
+      "doc": "Unique identifier for the driver."
+    },
+    {
+      "name": "rideId",
+      "type": "string",
+      "doc": "Unique identifier for the ride request."
+    },
+    {
+      "name": "cityId",
+      "type": "string",
+      "doc": "Identifier for the city where the ride is taking place."
+    },
+    {
+      "name": "pickupLat",
+      "type": "double",
+      "doc": "Latitude of the pickup location."
+    },
+    {
+      "name": "pickupLng",
+      "type": "double",
+      "doc": "Longitude of the pickup location."
+    },
+    {
+      "name": "estimatedDurationMinutes",
+      "type": "int",
+      "doc": "Estimated ride duration in minutes at time of acceptance."
+    },
+    {
+      "name": "estimatedFare",
+      "type": "double",
+      "doc": "Estimated fare in local currency."
+    },
+    {
+      "name": "eventType",
+      "type": {
+        "type": "enum",
+        "name": "RideEventType",
+        "symbols": ["RIDE_ACCEPTED", "RIDE_STARTED", "RIDE_COMPLETED", "RIDE_CANCELLED"],
+        "doc": "Discriminator field identifying what kind of event this record represents."
+      },
+      "doc": "The type of driver ride activity event."
+    },
+    {
+      "name": "rideType",
+      "type": {
+        "type": "enum",
+        "name": "RideType",
+        "symbols": ["STANDARD", "SHARED", "SCHEDULED"],
+        "doc": "Discriminator field identifying the ride product type."
+      },
+      "doc": "The ride product type."
+    },
+    {
+      "name": "fareAmount",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Final fare amount in local currency. Populated only for RIDE_COMPLETED events. Null for all other event types."
+    },
+    {
+      "name": "durationMinutes",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "Actual ride duration in minutes. Populated only for RIDE_COMPLETED events. Null for all other event types."
+    },
+    {
+      "name": "distanceKm",
+      "type": ["null", "double"],
+      "default": null,
+      "doc": "Actual ride distance in kilometers. Populated only for RIDE_COMPLETED events. Null for all other event types."
+    },
+    {
+      "name": "cancellationReason",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Reason for cancellation. Populated only for RIDE_CANCELLED events. Null for all other event types."
+    },
+    {
+      "name": "sharedRideAttributes",
+      "type": ["null", {
+        "type": "record",
+        "name": "SharedRideAttributes",
+        "doc": "Attributes specific to shared (pooled) rides. Null for STANDARD and SCHEDULED rides.",
+        "fields": [
+          {
+            "name": "passengerCount",
+            "type": "int",
+            "doc": "Number of passengers in the shared ride pool."
+          },
+          {
+            "name": "poolingScore",
+            "type": "double",
+            "doc": "Score (0-1) indicating how well this ride matched with other pool participants."
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "Shared-ride-specific attributes. Populated only when rideType is SHARED. Null for all other ride types."
+    },
+    {
+      "name": "scheduledRideAttributes",
+      "type": ["null", {
+        "type": "record",
+        "name": "ScheduledRideAttributes",
+        "doc": "Attributes specific to pre-scheduled rides. Null for STANDARD and SHARED rides.",
+        "fields": [
+          {
+            "name": "scheduledTime",
+            "type": "long",
+            "logicalType": "timestamp-millis",
+            "doc": "The scheduled pickup time requested by the passenger."
+          },
+          {
+            "name": "advanceBookingMinutes",
+            "type": "int",
+            "doc": "How many minutes in advance this ride was booked."
+          }
+        ]
+      }],
+      "default": null,
+      "doc": "Scheduled-ride-specific attributes. Populated only when rideType is SCHEDULED. Null for all other ride types."
+    }
+  ]
+}
