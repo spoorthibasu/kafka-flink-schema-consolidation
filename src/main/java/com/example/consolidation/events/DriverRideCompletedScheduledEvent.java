@@ -13,11 +13,11 @@ public class DriverRideCompletedScheduledEvent extends BaseRideEvent {
 
     private DriverRideCompletedScheduledEvent(Map<String, Object> raw) {
         super(raw);
-        this.fareAmount            = (Double)  raw.get("fareAmount");
-        this.durationMinutes       = (Integer) raw.get("durationMinutes");
-        this.distanceKm            = (Double)  raw.get("distanceKm");
-        this.scheduledTime         = (Long)    raw.get("scheduledTime");
-        this.advanceBookingMinutes = (Integer) raw.get("advanceBookingMinutes");
+        this.fareAmount            = ((Number) raw.get("fareAmount")).doubleValue();
+        this.durationMinutes       = ((Number) raw.get("durationMinutes")).intValue();
+        this.distanceKm            = ((Number) raw.get("distanceKm")).doubleValue();
+        this.scheduledTime         = ((Number) raw.get("scheduledTime")).longValue();
+        this.advanceBookingMinutes = ((Number) raw.get("advanceBookingMinutes")).intValue();
     }
 
     public DriverRideCompletedScheduledEvent(long eventTime, String driverId, String rideId,

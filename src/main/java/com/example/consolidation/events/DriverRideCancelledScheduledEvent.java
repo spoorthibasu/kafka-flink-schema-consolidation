@@ -12,8 +12,8 @@ public class DriverRideCancelledScheduledEvent extends BaseRideEvent {
     private DriverRideCancelledScheduledEvent(Map<String, Object> raw) {
         super(raw);
         this.cancellationReason    = (String)  raw.get("cancellationReason");
-        this.scheduledTime         = (Long)    raw.get("scheduledTime");
-        this.advanceBookingMinutes = (Integer) raw.get("advanceBookingMinutes");
+        this.scheduledTime         = ((Number) raw.get("scheduledTime")).longValue();
+        this.advanceBookingMinutes = ((Number) raw.get("advanceBookingMinutes")).intValue();
     }
 
     public DriverRideCancelledScheduledEvent(long eventTime, String driverId, String rideId,

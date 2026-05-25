@@ -21,14 +21,14 @@ public abstract class BaseRideEvent {
     private final double estimatedFare;
 
     protected BaseRideEvent(Map<String, Object> raw) {
-        this.eventTime               = (Long)    raw.get("eventTime");
+        this.eventTime               = ((Number) raw.get("eventTime")).longValue();
         this.driverId                = (String)  raw.get("driverId");
         this.rideId                  = (String)  raw.get("rideId");
         this.cityId                  = (String)  raw.get("cityId");
-        this.pickupLat               = (Double)  raw.get("pickupLat");
-        this.pickupLng               = (Double)  raw.get("pickupLng");
-        this.estimatedDurationMinutes = (Integer) raw.get("estimatedDurationMinutes");
-        this.estimatedFare           = (Double)  raw.get("estimatedFare");
+        this.pickupLat               = ((Number) raw.get("pickupLat")).doubleValue();
+        this.pickupLng               = ((Number) raw.get("pickupLng")).doubleValue();
+        this.estimatedDurationMinutes = ((Number) raw.get("estimatedDurationMinutes")).intValue();
+        this.estimatedFare           = ((Number) raw.get("estimatedFare")).doubleValue();
     }
 
     protected BaseRideEvent(long eventTime, String driverId, String rideId, String cityId,

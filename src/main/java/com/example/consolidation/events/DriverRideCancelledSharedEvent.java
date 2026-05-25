@@ -12,8 +12,8 @@ public class DriverRideCancelledSharedEvent extends BaseRideEvent {
     private DriverRideCancelledSharedEvent(Map<String, Object> raw) {
         super(raw);
         this.cancellationReason = (String)  raw.get("cancellationReason");
-        this.passengerCount     = (Integer) raw.get("passengerCount");
-        this.poolingScore       = (Double)  raw.get("poolingScore");
+        this.passengerCount     = ((Number) raw.get("passengerCount")).intValue();
+        this.poolingScore       = ((Number) raw.get("poolingScore")).doubleValue();
     }
 
     public DriverRideCancelledSharedEvent(long eventTime, String driverId, String rideId,

@@ -13,11 +13,11 @@ public class DriverRideCompletedSharedEvent extends BaseRideEvent {
 
     private DriverRideCompletedSharedEvent(Map<String, Object> raw) {
         super(raw);
-        this.fareAmount      = (Double)  raw.get("fareAmount");
-        this.durationMinutes = (Integer) raw.get("durationMinutes");
-        this.distanceKm      = (Double)  raw.get("distanceKm");
-        this.passengerCount  = (Integer) raw.get("passengerCount");
-        this.poolingScore    = (Double)  raw.get("poolingScore");
+        this.fareAmount      = ((Number) raw.get("fareAmount")).doubleValue();
+        this.durationMinutes = ((Number) raw.get("durationMinutes")).intValue();
+        this.distanceKm      = ((Number) raw.get("distanceKm")).doubleValue();
+        this.passengerCount  = ((Number) raw.get("passengerCount")).intValue();
+        this.poolingScore    = ((Number) raw.get("poolingScore")).doubleValue();
     }
 
     public DriverRideCompletedSharedEvent(long eventTime, String driverId, String rideId,

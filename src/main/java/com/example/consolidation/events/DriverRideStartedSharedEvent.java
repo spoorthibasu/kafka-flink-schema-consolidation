@@ -10,8 +10,8 @@ public class DriverRideStartedSharedEvent extends BaseRideEvent {
 
     private DriverRideStartedSharedEvent(Map<String, Object> raw) {
         super(raw);
-        this.passengerCount = (Integer) raw.get("passengerCount");
-        this.poolingScore   = (Double)  raw.get("poolingScore");
+        this.passengerCount = ((Number) raw.get("passengerCount")).intValue();
+        this.poolingScore   = ((Number) raw.get("poolingScore")).doubleValue();
     }
 
     public DriverRideStartedSharedEvent(long eventTime, String driverId, String rideId,

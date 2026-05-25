@@ -16,9 +16,9 @@ public class DriverRideCompletedStandardEvent extends BaseRideEvent {
         this.vehicleClass    = (String) raw.getOrDefault("vehicleClass", "UberX");
         this.surgeMultiplier = raw.containsKey("surgeMultiplier")
                 ? ((Number) raw.get("surgeMultiplier")).doubleValue() : 1.0;
-        this.fareAmount      = (Double)  raw.get("fareAmount");
-        this.durationMinutes = (Integer) raw.get("durationMinutes");
-        this.distanceKm      = (Double)  raw.get("distanceKm");
+        this.fareAmount      = ((Number) raw.get("fareAmount")).doubleValue();
+        this.durationMinutes = ((Number) raw.get("durationMinutes")).intValue();
+        this.distanceKm      = ((Number) raw.get("distanceKm")).doubleValue();
     }
 
     public DriverRideCompletedStandardEvent(long eventTime, String driverId, String rideId,

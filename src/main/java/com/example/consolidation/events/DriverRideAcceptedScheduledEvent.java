@@ -10,8 +10,8 @@ public class DriverRideAcceptedScheduledEvent extends BaseRideEvent {
 
     private DriverRideAcceptedScheduledEvent(Map<String, Object> raw) {
         super(raw);
-        this.scheduledTime          = (Long)    raw.get("scheduledTime");
-        this.advanceBookingMinutes  = (Integer) raw.get("advanceBookingMinutes");
+        this.scheduledTime          = ((Number) raw.get("scheduledTime")).longValue();
+        this.advanceBookingMinutes  = ((Number) raw.get("advanceBookingMinutes")).intValue();
     }
 
     public DriverRideAcceptedScheduledEvent(long eventTime, String driverId, String rideId,
