@@ -13,7 +13,7 @@ import java.util.Map;
  * the registry, which picks the matching RecordAdapter. The adapters themselves
  * have no Flink dependency, so all transformation logic stays unit-testable.
  */
-public class ConsolidationAdapter implements MapFunction<Map<String, Object>, DriverRideActivityRecord> {
+public class ConsolidationAdapter implements MapFunction<RawRideEvent, DriverRideActivityRecord> {
 
     private final AdapterRegistry adapterRegistry;
 
@@ -22,7 +22,8 @@ public class ConsolidationAdapter implements MapFunction<Map<String, Object>, Dr
     }
 
     @Override
-    public DriverRideActivityRecord map(Map<String, Object> rawEvent) {
+    public DriverRideActivityRecord map(RawRideEvent event) {
+        Map<String, Object> rawEvent = event.getFields();
         EventType eventType = resolveEventType(rawEvent);
         RideType rideType = resolveRideType(rawEvent);
         return adapterRegistry.adapt("default", eventType, rideType, rawEvent);

@@ -3,6 +3,7 @@ package com.example.consolidation.job;
 import com.example.consolidation.adapter.AdapterRegistry;
 import com.example.consolidation.adapter.ConsolidationAdapter;
 import com.example.consolidation.adapter.DriverRideActivityRecord;
+import com.example.consolidation.adapter.RawRideEvent;
 import com.example.consolidation.adapter.RawRideEventDeserializer;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.source.KafkaSource;
@@ -10,8 +11,6 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-
-import java.util.Map;
 
 /**
  * The runnable job. Reads ride-events off Kafka, routes each one through
@@ -33,7 +32,7 @@ public class RideActivityConsolidationJob {
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30_000);
         env.getCheckpointConfig().setCheckpointTimeout(120_000);
 
-        KafkaSource<Map<String, Object>> source = KafkaSource.<Map<String, Object>>builder()
+        KafkaSource<RawRideEvent> source = KafkaSource.<RawRideEvent>builder()
                 .setBootstrapServers(bootstrapServers)
                 .setTopics("ride-events")
                 .setGroupId("ride-consolidation-consumer")

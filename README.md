@@ -31,7 +31,7 @@ WHERE event_type = 'COMPLETED'
 Kafka ("ride-events" topic, all variants in one stream)
     |
     v
-RawRideEventDeserializer  turns the raw JSON bytes into an event map
+RawRideEventDeserializer  turns the raw JSON bytes into a RawRideEvent
     |
     v
 ConsolidationAdapter      reads eventType + rideType, delegates to the registry
@@ -87,13 +87,14 @@ public class SharedRideAcceptedAdapter
 
 **Layer 2: ConsolidationAdapter (Flink integration)**
 
-`RawRideEventDeserializer` turns the Kafka bytes into an event map. The adapter reads the discriminators and routes to the registry. All transformation logic lives in Layer 1.
+`RawRideEventDeserializer` turns the Kafka bytes into a `RawRideEvent`. The adapter reads the discriminators and routes to the registry. All transformation logic lives in Layer 1.
 
 ```java
-public class ConsolidationAdapter implements MapFunction<Map<String, Object>, DriverRideActivityRecord> {
+public class ConsolidationAdapter implements MapFunction<RawRideEvent, DriverRideActivityRecord> {
 
     @Override
-    public DriverRideActivityRecord map(Map<String, Object> rawEvent) {
+    public DriverRideActivityRecord map(RawRideEvent event) {
+        Map<String, Object> rawEvent = event.getFields();
         EventType eventType = resolveEventType(rawEvent);
         RideType rideType = resolveRideType(rawEvent);
         return adapterRegistry.adapt("default", eventType, rideType, rawEvent);
