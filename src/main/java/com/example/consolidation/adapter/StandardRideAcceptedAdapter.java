@@ -4,12 +4,7 @@ import com.example.consolidation.events.DriverRideAcceptedStandardEvent;
 import com.example.consolidation.model.EventType;
 import com.example.consolidation.model.RideType;
 
-/**
- * Maps a DriverRideAcceptedStandardEvent to the consolidated schema.
- *
- * No Flink dependency. Pure transformation logic that can be unit tested
- * without any framework setup.
- */
+/** Maps a DriverRideAcceptedStandardEvent to the consolidated schema. */
 public class StandardRideAcceptedAdapter
         implements RecordAdapter<DriverRideAcceptedStandardEvent, DriverRideActivityRecord> {
 

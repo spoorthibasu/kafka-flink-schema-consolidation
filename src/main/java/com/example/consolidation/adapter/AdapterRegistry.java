@@ -7,34 +7,30 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 
 /**
- * Registry that maps each (EventType, RideType) combination to its
- * dedicated RecordAdapter.
+ * Maps each (EventType, RideType) pair to its adapter.
  *
- * The registry stores type-erased adapters internally but exposes a type-safe
- * registration API. Each entry pairs an adapter with a converter that
- * deserializes the raw event map into the adapter's typed input.
+ * register() is type-safe; internally the adapters are stored with their source
+ * type erased so they can share one map. Each entry also keeps a fromMap function
+ * that builds the adapter's typed input from the raw event. Here fromMap is the
+ * event class's static factory; a real pipeline would plug in an Avro or JSON
+ * deserializer instead.
  *
- * In a production pipeline the converter would call an Avro or JSON deserializer.
- * In this reference implementation it calls the event class's static fromMap()
- * factory method.
- *
- * Use {@link #withAllAdapters()} to obtain a registry pre-loaded with all 12
- * ride event adapters. To add a new ride variant, register a new adapter here
- * without touching any other class.
+ * {@link #withAllAdapters()} returns a registry with all 12 wired up.
  */
 public class AdapterRegistry implements Serializable {
 
-    /**
-     * Internal type that binds an adapter to its raw-event converter, hiding
-     * the generic source type so adapters of different types can be stored
-     * together in a single map.
-     */
+    /** An adapter with its source type erased, so different adapters fit one map. */
     @FunctionalInterface
     private interface BoundAdapter extends Serializable {
         DriverRideActivityRecord adapt(String orgId, Map<String, Object> rawEvent);
+    }
+
+    /** Builds an adapter's typed input from the raw event map. Serializable so the registry ships to Flink. */
+    @FunctionalInterface
+    public interface EventFactory<S> extends Serializable {
+        S fromMap(Map<String, Object> rawEvent);
     }
 
     private static class AdapterKey implements Serializable {
@@ -63,27 +59,20 @@ public class AdapterRegistry implements Serializable {
     private final Map<AdapterKey, BoundAdapter> adapters = new HashMap<>();
 
     /**
-     * Registers an adapter for one (eventType, rideType) combination.
+     * Registers the adapter for one (eventType, rideType) pair.
      *
-     * @param eventType  discriminator for the ride lifecycle event
-     * @param rideType   discriminator for the ride product variant
-     * @param adapter    typed adapter with no Flink dependency
-     * @param fromMap    converts the raw event map to the adapter's typed input
-     * @param <S>        source event type the adapter expects
+     * @param fromMap builds the adapter's typed input from the raw event map
+     * @param <S>     source event type the adapter expects
      */
     public <S> void register(EventType eventType,
                               RideType rideType,
                               RecordAdapter<S, DriverRideActivityRecord> adapter,
-                              Function<Map<String, Object>, S> fromMap) {
+                              EventFactory<S> fromMap) {
         adapters.put(new AdapterKey(eventType, rideType),
-                     (orgId, raw) -> adapter.adapt(orgId, fromMap.apply(raw)));
+                     (orgId, raw) -> adapter.adapt(orgId, fromMap.fromMap(raw)));
     }
 
-    /**
-     * Looks up and invokes the adapter for the given discriminator combination.
-     *
-     * @throws IllegalArgumentException if no adapter is registered for the combination
-     */
+    /** @throws IllegalArgumentException if nothing is registered for this pair */
     public DriverRideActivityRecord adapt(String orgId,
                                      EventType eventType,
                                      RideType rideType,
@@ -96,11 +85,7 @@ public class AdapterRegistry implements Serializable {
         return bound.adapt(orgId, rawEvent);
     }
 
-    /**
-     * Returns a registry pre-loaded with all 12 ride event adapters, one per
-     * (EventType, RideType) combination. Adding a new ride variant means
-     * adding one adapter class and one line here.
-     */
+    /** All 12 adapters, wired up. A new variant is one adapter class and one line here. */
     public static AdapterRegistry withAllAdapters() {
         AdapterRegistry registry = new AdapterRegistry();
 

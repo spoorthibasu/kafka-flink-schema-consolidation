@@ -1,18 +1,12 @@
 package com.example.consolidation.adapter;
 
-/**
- * Attribute block for pre-scheduled ride events.
- *
- * This object is populated only when rideType is SCHEDULED.
- * For STANDARD and SHARED rides, scheduledRideAttributes is null in the
- * consolidated record.
- */
+/** Fields only SCHEDULED rides carry. Null on the record for other ride types. */
 public class ScheduledRideAttributes {
 
-    /** The scheduled pickup time requested by the passenger, as a Unix timestamp in milliseconds. */
+    /** Requested pickup time, epoch millis. */
     private long scheduledTime;
 
-    /** How many minutes in advance this ride was booked before the scheduled pickup time. */
+    /** Minutes between booking and the scheduled pickup. */
     private int advanceBookingMinutes;
 
     public long getScheduledTime() { return scheduledTime; }
@@ -20,4 +14,9 @@ public class ScheduledRideAttributes {
 
     public int getAdvanceBookingMinutes() { return advanceBookingMinutes; }
     public void setAdvanceBookingMinutes(int advanceBookingMinutes) { this.advanceBookingMinutes = advanceBookingMinutes; }
+
+    @Override
+    public String toString() {
+        return "{scheduledTime=" + scheduledTime + ", advanceBookingMinutes=" + advanceBookingMinutes + "}";
+    }
 }

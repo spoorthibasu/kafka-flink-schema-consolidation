@@ -9,11 +9,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Verifies that AdapterRegistry routes to the correct adapter for every
- * (EventType, RideType) combination and that adding an unknown combination
- * fails fast rather than silently producing wrong output.
- */
+/** Checks all 12 pairs route correctly, and that an unregistered pair fails fast. */
 class AdapterRegistryTest {
 
     private final AdapterRegistry registry = AdapterRegistry.withAllAdapters();
@@ -77,14 +73,14 @@ class AdapterRegistryTest {
     void completedRide_populatesFareFields() {
         Map<String, Object> raw = baseRawEvent();
         raw.put("fareAmount", 22.75);
-        raw.put("durationMinutes", 18);
+        raw.put("durationMins", 18);
         raw.put("distanceKm", 7.3);
 
         DriverRideActivityRecord record = registry.adapt("org-1",
                 EventType.COMPLETED, RideType.STANDARD, raw);
 
         assertEquals(22.75, record.getFareAmount(), 0.001);
-        assertEquals(18, record.getDurationMinutes());
+        assertEquals(18, record.getDurationMins());
         assertEquals(7.3, record.getDistanceKm(), 0.001);
     }
 
@@ -117,7 +113,7 @@ class AdapterRegistryTest {
         }
         if (eventType == EventType.COMPLETED) {
             raw.put("fareAmount", 20.00);
-            raw.put("durationMinutes", 14);
+            raw.put("durationMins", 14);
             raw.put("distanceKm", 5.5);
         }
         if (eventType == EventType.CANCELLED) {

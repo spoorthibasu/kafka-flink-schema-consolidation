@@ -6,7 +6,7 @@ import java.util.Map;
 public class DriverRideCompletedScheduledEvent extends BaseRideEvent {
 
     private final double fareAmount;
-    private final int durationMinutes;
+    private final int durationMins;
     private final double distanceKm;
     private final long scheduledTime;
     private final int advanceBookingMinutes;
@@ -14,7 +14,7 @@ public class DriverRideCompletedScheduledEvent extends BaseRideEvent {
     private DriverRideCompletedScheduledEvent(Map<String, Object> raw) {
         super(raw);
         this.fareAmount            = ((Number) raw.get("fareAmount")).doubleValue();
-        this.durationMinutes       = ((Number) raw.get("durationMinutes")).intValue();
+        this.durationMins       = ((Number) raw.get("durationMins")).intValue();
         this.distanceKm            = ((Number) raw.get("distanceKm")).doubleValue();
         this.scheduledTime         = ((Number) raw.get("scheduledTime")).longValue();
         this.advanceBookingMinutes = ((Number) raw.get("advanceBookingMinutes")).intValue();
@@ -23,12 +23,12 @@ public class DriverRideCompletedScheduledEvent extends BaseRideEvent {
     public DriverRideCompletedScheduledEvent(long eventTime, String driverId, String rideId,
                                               String cityId, double pickupLat, double pickupLng,
                                               int estimatedDurationMinutes, double estimatedFare,
-                                              double fareAmount, int durationMinutes, double distanceKm,
+                                              double fareAmount, int durationMins, double distanceKm,
                                               long scheduledTime, int advanceBookingMinutes) {
         super(eventTime, driverId, rideId, cityId, pickupLat, pickupLng,
               estimatedDurationMinutes, estimatedFare);
         this.fareAmount            = fareAmount;
-        this.durationMinutes       = durationMinutes;
+        this.durationMins       = durationMins;
         this.distanceKm            = distanceKm;
         this.scheduledTime         = scheduledTime;
         this.advanceBookingMinutes = advanceBookingMinutes;
@@ -39,7 +39,7 @@ public class DriverRideCompletedScheduledEvent extends BaseRideEvent {
     }
 
     public double getFareAmount()         { return fareAmount; }
-    public int getDurationMinutes()       { return durationMinutes; }
+    public int getDurationMins()       { return durationMins; }
     public double getDistanceKm()         { return distanceKm; }
     public long getScheduledTime()        { return scheduledTime; }
     public int getAdvanceBookingMinutes() { return advanceBookingMinutes; }

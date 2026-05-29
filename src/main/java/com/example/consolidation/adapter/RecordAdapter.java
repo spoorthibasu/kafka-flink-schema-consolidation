@@ -1,22 +1,17 @@
 package com.example.consolidation.adapter;
 
+import java.io.Serializable;
+
 /**
- * Contract for mapping a typed source event to a consolidated output record.
- *
- * Implementations are pure transformation logic with no dependency on the Flink
- * framework, making them straightforward to unit test without any framework setup.
+ * Maps one typed source event to the consolidated record. Plain Java, no Flink,
+ * so each implementation is easy to unit test on its own. Serializable so Flink
+ * can ship the adapters out to its task slots.
  *
  * @param <S> source event type (e.g. DriverRideAcceptedSharedEvent)
  * @param <T> output record type (e.g. DriverRideActivityRecord)
  */
-public interface RecordAdapter<S, T> {
+public interface RecordAdapter<S, T> extends Serializable {
 
-    /**
-     * Maps a typed source event to the consolidated output schema.
-     *
-     * @param orgId  organizational identifier for multi-tenant pipelines
-     * @param event  the typed source event to transform
-     * @return       the populated consolidated record
-     */
+    /** @param orgId tenant id, for multi-tenant pipelines */
     T adapt(String orgId, S event);
 }

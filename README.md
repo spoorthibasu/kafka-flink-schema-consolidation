@@ -31,10 +31,13 @@ WHERE event_type = 'COMPLETED'
 Kafka ("ride-events" topic, all variants in one stream)
     |
     v
-ConsolidationAdapter     parses raw event, reads eventType + rideType, delegates to registry
+RawRideEventDeserializer  turns the raw JSON bytes into an event map
     |
     v
-AdapterRegistry          maps (EventType, RideType) to the right RecordAdapter
+ConsolidationAdapter      reads eventType + rideType, delegates to the registry
+    |
+    v
+AdapterRegistry           maps (EventType, RideType) to the right RecordAdapter
     |
     +-- StandardRideAcceptedAdapter
     +-- SharedRideAcceptedAdapter
@@ -42,13 +45,13 @@ AdapterRegistry          maps (EventType, RideType) to the right RecordAdapter
     +-- ... (12 adapters total, one per variant)
     |
     v
-S3 / Data Lake
-    +-- driver_ride_activity  (single consolidated Iceberg table)
+sink: prints each DriverRideActivityRecord to stdout in this demo
+      (in production, one Iceberg table: driver_ride_activity)
 ```
 
 ## Two-layer design
 
-Transformation logic is kept separate from Flink framework integration.
+The two layers keep transformation logic out of the Flink-specific code.
 
 **Layer 1: RecordAdapter (pure Java, no Flink dependency)**
 
@@ -65,12 +68,18 @@ public class SharedRideAcceptedAdapter
         record.setDriverId(event.getDriverId());
         record.setRideId(event.getRideId());
         record.setCityId(event.getCityId());
+        record.setPickupLat(event.getPickupLat());
+        record.setPickupLng(event.getPickupLng());
+        record.setEstimatedDurationMinutes(event.getEstimatedDurationMinutes());
+        record.setEstimatedFare(event.getEstimatedFare());
         record.setEventType(EventType.ACCEPTED);
         record.setRideType(RideType.SHARED);
+
         SharedRideAttributes attrs = new SharedRideAttributes();
         attrs.setPassengerCount(event.getPassengerCount());
         attrs.setPoolingScore(event.getPoolingScore());
         record.setSharedRideAttributes(attrs);
+        // scheduledRideAttributes remains null
         return record;
     }
 }
@@ -78,14 +87,13 @@ public class SharedRideAcceptedAdapter
 
 **Layer 2: ConsolidationAdapter (Flink integration)**
 
-Routes events to the right adapter via the registry. All transformation logic lives in Layer 1.
+`RawRideEventDeserializer` turns the Kafka bytes into an event map. The adapter reads the discriminators and routes to the registry. All transformation logic lives in Layer 1.
 
 ```java
-public class ConsolidationAdapter implements MapFunction<String, DriverRideActivityRecord> {
+public class ConsolidationAdapter implements MapFunction<Map<String, Object>, DriverRideActivityRecord> {
 
     @Override
-    public DriverRideActivityRecord map(String rawEventJson) throws Exception {
-        Map<String, Object> rawEvent = parseEvent(rawEventJson);
+    public DriverRideActivityRecord map(Map<String, Object> rawEvent) {
         EventType eventType = resolveEventType(rawEvent);
         RideType rideType = resolveRideType(rawEvent);
         return adapterRegistry.adapt("default", eventType, rideType, rawEvent);
@@ -99,10 +107,11 @@ public class ConsolidationAdapter implements MapFunction<String, DriverRideActiv
 src/
   main/
     avro/
-      fragmented/                         # Before: separate schemas per variant
+      fragmented/                         # Before: 12 separate schemas, one per variant
         DriverRideAcceptedStandard.avsc
         DriverRideAcceptedShared.avsc
         DriverRideAcceptedScheduled.avsc
+        ... (and 9 more for STARTED, COMPLETED, CANCELLED x 3 ride types)
       consolidated/                       # After: one schema for all variants
         DriverRideActivityRecord.avsc
     java/com/example/consolidation/
@@ -115,6 +124,7 @@ src/
       adapter/
         RecordAdapter.java                # Interface: adapt(orgId, event) -> DriverRideActivityRecord
         AdapterRegistry.java             # Maps (EventType, RideType) to the right adapter
+        RawRideEventDeserializer.java    # Kafka bytes -> event map
         ConsolidationAdapter.java        # Flink MapFunction, delegates to registry
         DriverRideActivityRecord.java    # Output POJO matching the Avro schema
         StandardRideAttributes.java
@@ -122,6 +132,7 @@ src/
         ScheduledRideAttributes.java
         StandardRideAcceptedAdapter.java
         SharedRideAcceptedAdapter.java
+        ScheduledRideAcceptedAdapter.java
         ... (and 9 more adapters)
       model/
         EventType.java                   # Enum: ACCEPTED, STARTED, COMPLETED, CANCELLED
@@ -157,17 +168,20 @@ src/
 
 Discriminator enums are always populated. Nullable attribute blocks carry variant-specific data. Exactly one block is populated per record; the rest are null.
 
+This snippet is abbreviated. The full schema in `src/main/avro/consolidated/DriverRideActivityRecord.avsc` also carries the base ride fields and the event-specific ones: `fareAmount`, `durationMins`, `distanceKm` (COMPLETED) and `cancellationReason` (CANCELLED).
+
 ## Adding a new variant
 
 To add PREMIUM rides:
 
 1. Add `PREMIUM` to `RideType.java`
-2. Create `DriverRide*PremiumEvent` source event classes in `events/`
-3. Create `PremiumRide*Adapter` classes implementing `RecordAdapter`
-4. Register them in `AdapterRegistry.withAllAdapters()`, one call per event type
-5. Add a `premiumRideAttributes` nullable block to `DriverRideActivityRecord.avsc` with `"default": null`
+2. Add a `PremiumRideAttributes` class, plus a `premiumRideAttributes` field and its getter/setter on `DriverRideActivityRecord.java`
+3. Create the `DriverRide*PremiumEvent` source event classes in `events/`
+4. Create the `PremiumRide*Adapter` classes implementing `RecordAdapter`
+5. Register them in `AdapterRegistry.withAllAdapters()`, one line per event type
+6. Add a matching `premiumRideAttributes` block to `DriverRideActivityRecord.avsc` (nullable, `"default": null`)
 
-No existing adapters, consumers, or tables need to change.
+No existing adapters, consumers, or tables change.
 
 ## Schema evolution
 
@@ -179,10 +193,10 @@ For Schema Registry: use `FULL` or `FULL_TRANSITIVE` compatibility mode. `BACKWA
 
 ### Prerequisites
 
-- Java 11+
-- Maven 3.8+
-- Apache Flink 1.18+
-- Apache Kafka 3.x (only needed to run the job, not for tests)
+- Java 11+ and Maven 3.8+ (Maven downloads the dependencies on first build)
+- Docker with Compose v2 (the `docker compose` command, included in Docker Desktop) to run Kafka locally; the `docker-compose.yml` here starts a single broker
+
+The tests need only Java and Maven. The end-to-end run adds Docker. You do not need to install Flink or Kafka yourself: `mvn exec:exec` runs the job in an embedded local cluster, and Docker provides the broker. A real `flink run` submission is shown at the end, for when you have a cluster.
 
 ### Run the tests
 
@@ -190,7 +204,7 @@ For Schema Registry: use `FULL` or `FULL_TRANSITIVE` compatibility mode. `BACKWA
 mvn test
 ```
 
-Tests run without Kafka, Flink, or any infrastructure.
+This is the quickest way to see the pattern work: the tests exercise all 12 adapters and the registry with no Kafka, Flink, or other infrastructure.
 
 ### Build
 
@@ -198,15 +212,87 @@ Tests run without Kafka, Flink, or any infrastructure.
 mvn clean package -DskipTests
 ```
 
-### Run the Flink job
+Produces `target/kafka-flink-schema-consolidation-1.0.0.jar`.
+
+### Run the job end to end
+
+The job reads JSON events off the `ride-events` topic, routes each through the adapters, and prints the consolidated record. You produce events in one terminal and watch records appear in the other.
+
+1. Start Kafka and create the topic:
+
+   ```bash
+   docker compose up -d
+   docker exec kfsc-kafka /opt/kafka/bin/kafka-topics.sh \
+     --create --topic ride-events --bootstrap-server localhost:9092
+   ```
+
+2. Run the job (embedded Flink, no install needed). It keeps running and prints each record, so leave it open:
+
+   ```bash
+   mvn compile exec:exec
+   ```
+
+   The exec config in `pom.xml` adds the module flags Flink needs on Java 17, so this works on both Java 11 and 17.
+
+3. In another terminal, produce an event:
+
+   ```bash
+   echo '{"eventType":"ACCEPTED","rideType":"SHARED","eventTime":1700000000000,"driverId":"driver-1","rideId":"ride-1","cityId":"NYC","pickupLat":40.71,"pickupLng":-74.0,"estimatedDurationMinutes":12,"estimatedFare":18.5,"passengerCount":2,"poolingScore":0.87}' \
+     | docker exec -i kfsc-kafka /opt/kafka/bin/kafka-console-producer.sh \
+       --topic ride-events --bootstrap-server localhost:9092
+   ```
+
+The job terminal prints the consolidated record (only the populated blocks show):
+
+```
+Consolidating 'ride-events' -> s3://your-bucket/driver_ride_activity
+DriverRideActivityRecord{eventType=ACCEPTED, rideType=SHARED, driverId=driver-1, rideId=ride-1, cityId=NYC, sharedRideAttributes={passengerCount=2, poolingScore=0.87}}
+```
+
+Change `eventType`, `rideType`, and the variant fields to exercise the other adapters. A `COMPLETED` event adds `fareAmount`, `durationMins`, and `distanceKm`; a `CANCELLED` event adds `cancellationReason`. Stop the job with Ctrl+C and tear down Kafka with `docker compose down`.
+
+#### On a real Flink cluster
+
+If you already have a cluster, build the fat jar (see Build above) and submit it. The cluster has Flink on its classpath, so `flink run` adds the Java 17 module flags for you:
 
 ```bash
 flink run -c com.example.consolidation.job.RideActivityConsolidationJob \
   target/kafka-flink-schema-consolidation-1.0.0.jar \
-  --kafka-bootstrap-servers localhost:9092 \
+  --kafka-bootstrap-servers <broker:9092> \
   --output-path s3://your-bucket/driver_ride_activity \
   --checkpoint-interval 60000
 ```
+
+To stand up a real cluster locally instead, `docker-compose.cluster.yml` runs a JobManager, a TaskManager, and Kafka. This is closer to production than `mvn exec:exec` (the job is submitted to a cluster and runs on the TaskManager), with the Flink dashboard at http://localhost:8081.
+
+```bash
+# 1. build the jar (the compose mounts ./target into the JobManager)
+mvn clean package -DskipTests
+docker compose -f docker-compose.cluster.yml up -d
+
+# 2. create the topic
+docker compose -f docker-compose.cluster.yml exec kafka \
+  /opt/kafka/bin/kafka-topics.sh --create --topic ride-events --bootstrap-server kafka:9092
+
+# 3. submit the jar (mounted at /jars)
+docker compose -f docker-compose.cluster.yml exec jobmanager \
+  flink run -d -c com.example.consolidation.job.RideActivityConsolidationJob \
+  /jars/kafka-flink-schema-consolidation-1.0.0.jar --kafka-bootstrap-servers kafka:9092
+
+# 4. produce an event
+echo '{"eventType":"ACCEPTED","rideType":"SHARED","eventTime":1700000000000,"driverId":"driver-1","rideId":"ride-1","cityId":"NYC","pickupLat":40.71,"pickupLng":-74.0,"estimatedDurationMinutes":12,"estimatedFare":18.5,"passengerCount":2,"poolingScore":0.87}' \
+  | docker compose -f docker-compose.cluster.yml exec -T kafka \
+    /opt/kafka/bin/kafka-console-producer.sh --topic ride-events --bootstrap-server kafka:9092
+```
+
+The job runs on the TaskManager, so its output goes to that container's log:
+
+```bash
+docker compose -f docker-compose.cluster.yml logs taskmanager | grep DriverRideActivityRecord
+# DriverRideActivityRecord{eventType=ACCEPTED, rideType=SHARED, driverId=driver-1, ...}
+```
+
+Tear it all down with `docker compose -f docker-compose.cluster.yml down -v`.
 
 ## Trade-offs
 

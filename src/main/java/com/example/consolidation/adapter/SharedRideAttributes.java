@@ -1,15 +1,6 @@
 package com.example.consolidation.adapter;
 
-/**
- * Attribute block for shared (pooled) ride events.
- *
- * This object is populated only when rideType is SHARED.
- * For STANDARD and SCHEDULED rides, sharedRideAttributes is null in the
- * consolidated record.
- *
- * Adding new fields to this class is a backward-compatible Avro schema change
- * as long as new fields are nullable with a default of null.
- */
+/** Fields only SHARED rides carry. Null on the record for other ride types. */
 public class SharedRideAttributes {
 
     /** Number of passengers in the shared ride pool. */
@@ -23,4 +14,9 @@ public class SharedRideAttributes {
 
     public double getPoolingScore() { return poolingScore; }
     public void setPoolingScore(double poolingScore) { this.poolingScore = poolingScore; }
+
+    @Override
+    public String toString() {
+        return "{passengerCount=" + passengerCount + ", poolingScore=" + poolingScore + "}";
+    }
 }

@@ -1,8 +1,8 @@
 {
   "type": "record",
-  "name": "DriverRideAcceptedStandard",
+  "name": "DriverRideCompletedScheduled",
   "namespace": "com.example.events.fragmented",
-  "doc": "Emitted when a driver accepts a standard (non-pooled, non-scheduled) ride request. Contains the common base fields plus standard-ride-specific fields.",
+  "doc": "Emitted when a pre-scheduled ride reaches completion. Contains the common base fields, completion metrics, and scheduling-specific fields.",
   "fields": [
     {"name": "eventTime", "type": "long", "logicalType": "timestamp-millis", "doc": "Unix timestamp in milliseconds when the event occurred."},
     {"name": "driverId", "type": "string", "doc": "Unique identifier for the driver."},
@@ -12,7 +12,10 @@
     {"name": "pickupLng", "type": "double", "doc": "Longitude of the pickup location."},
     {"name": "estimatedDurationMinutes", "type": "int", "doc": "Estimated ride duration in minutes at time of acceptance."},
     {"name": "estimatedFare", "type": "double", "doc": "Estimated fare in local currency at time of acceptance."},
-    {"name": "vehicleClass", "type": "string", "doc": "Vehicle class for this ride (e.g. UberX, UberXL, UberBlack)."},
-    {"name": "surgeMultiplier", "type": "double", "doc": "Surge pricing multiplier in effect at the time of acceptance. 1.0 means no surge."}
+    {"name": "fareAmount", "type": "double", "doc": "Final fare amount in local currency."},
+    {"name": "durationMins", "type": "int", "doc": "Actual ride duration in minutes."},
+    {"name": "distanceKm", "type": "double", "doc": "Actual ride distance in kilometers."},
+    {"name": "scheduledTime", "type": "long", "logicalType": "timestamp-millis", "doc": "The scheduled pickup time requested by the passenger."},
+    {"name": "advanceBookingMinutes", "type": "int", "doc": "How many minutes in advance this ride was booked."}
   ]
 }

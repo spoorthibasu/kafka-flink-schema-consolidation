@@ -22,7 +22,7 @@ public class ScheduledRideCompletedAdapter
         record.setEventType(EventType.COMPLETED);
         record.setRideType(RideType.SCHEDULED);
         record.setFareAmount(event.getFareAmount());
-        record.setDurationMinutes(event.getDurationMinutes());
+        record.setDurationMins(event.getDurationMins());
         record.setDistanceKm(event.getDistanceKm());
 
         ScheduledRideAttributes attrs = new ScheduledRideAttributes();

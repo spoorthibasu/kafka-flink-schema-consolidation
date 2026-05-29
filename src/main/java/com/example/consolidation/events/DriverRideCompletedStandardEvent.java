@@ -8,7 +8,7 @@ public class DriverRideCompletedStandardEvent extends BaseRideEvent {
     private final String vehicleClass;
     private final double surgeMultiplier;
     private final double fareAmount;
-    private final int durationMinutes;
+    private final int durationMins;
     private final double distanceKm;
 
     private DriverRideCompletedStandardEvent(Map<String, Object> raw) {
@@ -17,7 +17,7 @@ public class DriverRideCompletedStandardEvent extends BaseRideEvent {
         this.surgeMultiplier = raw.containsKey("surgeMultiplier")
                 ? ((Number) raw.get("surgeMultiplier")).doubleValue() : 1.0;
         this.fareAmount      = ((Number) raw.get("fareAmount")).doubleValue();
-        this.durationMinutes = ((Number) raw.get("durationMinutes")).intValue();
+        this.durationMins = ((Number) raw.get("durationMins")).intValue();
         this.distanceKm      = ((Number) raw.get("distanceKm")).doubleValue();
     }
 
@@ -25,13 +25,13 @@ public class DriverRideCompletedStandardEvent extends BaseRideEvent {
                                              String cityId, double pickupLat, double pickupLng,
                                              int estimatedDurationMinutes, double estimatedFare,
                                              String vehicleClass, double surgeMultiplier,
-                                             double fareAmount, int durationMinutes, double distanceKm) {
+                                             double fareAmount, int durationMins, double distanceKm) {
         super(eventTime, driverId, rideId, cityId, pickupLat, pickupLng,
               estimatedDurationMinutes, estimatedFare);
         this.vehicleClass    = vehicleClass;
         this.surgeMultiplier = surgeMultiplier;
         this.fareAmount      = fareAmount;
-        this.durationMinutes = durationMinutes;
+        this.durationMins = durationMins;
         this.distanceKm      = distanceKm;
     }
 
@@ -42,6 +42,6 @@ public class DriverRideCompletedStandardEvent extends BaseRideEvent {
     public String getVehicleClass()     { return vehicleClass; }
     public double getSurgeMultiplier()  { return surgeMultiplier; }
     public double getFareAmount()       { return fareAmount; }
-    public int getDurationMinutes()     { return durationMinutes; }
+    public int getDurationMins()     { return durationMins; }
     public double getDistanceKm()       { return distanceKm; }
 }

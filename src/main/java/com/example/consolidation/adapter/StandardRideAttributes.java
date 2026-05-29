@@ -1,9 +1,6 @@
 package com.example.consolidation.adapter;
 
-/**
- * Attributes specific to standard (single-passenger) rides.
- * Null for SHARED and SCHEDULED rides.
- */
+/** Fields only STANDARD rides carry. Null on the record for other ride types. */
 public class StandardRideAttributes {
 
     private String vehicleClass;
@@ -14,4 +11,9 @@ public class StandardRideAttributes {
 
     public double getSurgeMultiplier()          { return surgeMultiplier; }
     public void setSurgeMultiplier(double s)    { this.surgeMultiplier = s; }
+
+    @Override
+    public String toString() {
+        return "{vehicleClass=" + vehicleClass + ", surgeMultiplier=" + surgeMultiplier + "}";
+    }
 }

@@ -1,8 +1,8 @@
 {
   "type": "record",
-  "name": "DriverRideAcceptedStandard",
+  "name": "DriverRideStartedStandard",
   "namespace": "com.example.events.fragmented",
-  "doc": "Emitted when a driver accepts a standard (non-pooled, non-scheduled) ride request. Contains the common base fields plus standard-ride-specific fields.",
+  "doc": "Emitted when a driver picks up the passenger and starts a standard (non-pooled, non-scheduled) ride. Contains the common base fields plus standard-ride-specific fields.",
   "fields": [
     {"name": "eventTime", "type": "long", "logicalType": "timestamp-millis", "doc": "Unix timestamp in milliseconds when the event occurred."},
     {"name": "driverId", "type": "string", "doc": "Unique identifier for the driver."},

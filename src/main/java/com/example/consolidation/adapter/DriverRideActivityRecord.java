@@ -4,12 +4,9 @@ import com.example.consolidation.model.EventType;
 import com.example.consolidation.model.RideType;
 
 /**
- * Java representation of the consolidated DriverRideActivityRecord Avro schema.
- *
- * This single class replaces what would otherwise be N separate event classes,
- * one per event-type/ride-type combination. The discriminator fields (eventType,
- * rideType) identify the variant, and nullable attribute blocks hold type-specific
- * data.
+ * The one output record, matching DriverRideActivityRecord.avsc. Replaces the 12
+ * per-variant classes: the discriminators say which variant, and only that
+ * variant's attribute block is set.
  */
 public class DriverRideActivityRecord {
 
@@ -29,7 +26,7 @@ public class DriverRideActivityRecord {
 
     // Completion-only fields: populated for COMPLETED, null otherwise
     private Double fareAmount;
-    private Integer durationMinutes;
+    private Integer durationMins;
     private Double distanceKm;
 
     // Cancellation-only fields: populated for CANCELLED, null otherwise
@@ -73,8 +70,8 @@ public class DriverRideActivityRecord {
     public Double getFareAmount()                                   { return fareAmount; }
     public void setFareAmount(Double v)                             { this.fareAmount = v; }
 
-    public Integer getDurationMinutes()                             { return durationMinutes; }
-    public void setDurationMinutes(Integer v)                       { this.durationMinutes = v; }
+    public Integer getDurationMins()                             { return durationMins; }
+    public void setDurationMins(Integer v)                       { this.durationMins = v; }
 
     public Double getDistanceKm()                                   { return distanceKm; }
     public void setDistanceKm(Double v)                             { this.distanceKm = v; }
@@ -90,4 +87,23 @@ public class DriverRideActivityRecord {
 
     public ScheduledRideAttributes getScheduledRideAttributes()     { return scheduledRideAttributes; }
     public void setScheduledRideAttributes(ScheduledRideAttributes v) { this.scheduledRideAttributes = v; }
+
+    /** Shows the discriminators and only the fields that are set, so print() output is readable. */
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("DriverRideActivityRecord{")
+                .append("eventType=").append(eventType)
+                .append(", rideType=").append(rideType)
+                .append(", driverId=").append(driverId)
+                .append(", rideId=").append(rideId)
+                .append(", cityId=").append(cityId);
+        if (fareAmount != null)             sb.append(", fareAmount=").append(fareAmount);
+        if (durationMins != null)           sb.append(", durationMins=").append(durationMins);
+        if (distanceKm != null)             sb.append(", distanceKm=").append(distanceKm);
+        if (cancellationReason != null)     sb.append(", cancellationReason=").append(cancellationReason);
+        if (standardRideAttributes != null) sb.append(", standardRideAttributes=").append(standardRideAttributes);
+        if (sharedRideAttributes != null)   sb.append(", sharedRideAttributes=").append(sharedRideAttributes);
+        if (scheduledRideAttributes != null) sb.append(", scheduledRideAttributes=").append(scheduledRideAttributes);
+        return sb.append('}').toString();
+    }
 }

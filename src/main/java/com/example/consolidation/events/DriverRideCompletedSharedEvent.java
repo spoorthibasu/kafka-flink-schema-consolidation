@@ -6,7 +6,7 @@ import java.util.Map;
 public class DriverRideCompletedSharedEvent extends BaseRideEvent {
 
     private final double fareAmount;
-    private final int durationMinutes;
+    private final int durationMins;
     private final double distanceKm;
     private final int passengerCount;
     private final double poolingScore;
@@ -14,7 +14,7 @@ public class DriverRideCompletedSharedEvent extends BaseRideEvent {
     private DriverRideCompletedSharedEvent(Map<String, Object> raw) {
         super(raw);
         this.fareAmount      = ((Number) raw.get("fareAmount")).doubleValue();
-        this.durationMinutes = ((Number) raw.get("durationMinutes")).intValue();
+        this.durationMins = ((Number) raw.get("durationMins")).intValue();
         this.distanceKm      = ((Number) raw.get("distanceKm")).doubleValue();
         this.passengerCount  = ((Number) raw.get("passengerCount")).intValue();
         this.poolingScore    = ((Number) raw.get("poolingScore")).doubleValue();
@@ -23,12 +23,12 @@ public class DriverRideCompletedSharedEvent extends BaseRideEvent {
     public DriverRideCompletedSharedEvent(long eventTime, String driverId, String rideId,
                                            String cityId, double pickupLat, double pickupLng,
                                            int estimatedDurationMinutes, double estimatedFare,
-                                           double fareAmount, int durationMinutes, double distanceKm,
+                                           double fareAmount, int durationMins, double distanceKm,
                                            int passengerCount, double poolingScore) {
         super(eventTime, driverId, rideId, cityId, pickupLat, pickupLng,
               estimatedDurationMinutes, estimatedFare);
         this.fareAmount      = fareAmount;
-        this.durationMinutes = durationMinutes;
+        this.durationMins = durationMins;
         this.distanceKm      = distanceKm;
         this.passengerCount  = passengerCount;
         this.poolingScore    = poolingScore;
@@ -39,7 +39,7 @@ public class DriverRideCompletedSharedEvent extends BaseRideEvent {
     }
 
     public double getFareAmount()    { return fareAmount; }
-    public int getDurationMinutes()  { return durationMinutes; }
+    public int getDurationMins()  { return durationMins; }
     public double getDistanceKm()    { return distanceKm; }
     public int getPassengerCount()   { return passengerCount; }
     public double getPoolingScore()  { return poolingScore; }

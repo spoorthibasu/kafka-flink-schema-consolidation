@@ -2,26 +2,18 @@ package com.example.consolidation.adapter;
 
 import com.example.consolidation.model.EventType;
 import com.example.consolidation.model.RideType;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.functions.MapFunction;
 
 import java.util.Map;
 
 /**
- * Flink framework integration layer for schema consolidation.
+ * Flink map function that routes each event to its variant adapter.
  *
- * Reads raw Kafka events (JSON strings), extracts the eventType and rideType
- * discriminator fields, then delegates to the AdapterRegistry to route each
- * event to its typed RecordAdapter. The resulting DriverRideActivityRecord is
- * written downstream to the consolidated Iceberg table.
- *
- * All transformation logic lives in the individual RecordAdapter implementations,
- * which have no Flink dependency and can be unit tested without framework setup.
+ * It reads the eventType and rideType discriminators, then hands the raw event to
+ * the registry, which picks the matching RecordAdapter. The adapters themselves
+ * have no Flink dependency, so all transformation logic stays unit-testable.
  */
-public class ConsolidationAdapter implements MapFunction<String, DriverRideActivityRecord> {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+public class ConsolidationAdapter implements MapFunction<Map<String, Object>, DriverRideActivityRecord> {
 
     private final AdapterRegistry adapterRegistry;
 
@@ -30,8 +22,7 @@ public class ConsolidationAdapter implements MapFunction<String, DriverRideActiv
     }
 
     @Override
-    public DriverRideActivityRecord map(String rawEventJson) throws Exception {
-        Map<String, Object> rawEvent = parseEvent(rawEventJson);
+    public DriverRideActivityRecord map(Map<String, Object> rawEvent) {
         EventType eventType = resolveEventType(rawEvent);
         RideType rideType = resolveRideType(rawEvent);
         return adapterRegistry.adapt("default", eventType, rideType, rawEvent);
@@ -52,14 +43,6 @@ public class ConsolidationAdapter implements MapFunction<String, DriverRideActiv
             return RideType.valueOf(typeStr.toUpperCase());
         } catch (IllegalArgumentException e) {
             return RideType.STANDARD;
-        }
-    }
-
-    private Map<String, Object> parseEvent(String rawEventJson) {
-        try {
-            return MAPPER.readValue(rawEventJson, new TypeReference<Map<String, Object>>() {});
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse event: " + rawEventJson, e);
         }
     }
 }

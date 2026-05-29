@@ -3,11 +3,8 @@ package com.example.consolidation.events;
 import java.util.Map;
 
 /**
- * Fields shared across all ride event types and ride variants.
- *
- * In a production Kafka pipeline these fields are present in every fragmented
- * schema, duplicated across all 12 schema definitions. The 80-95% structural
- * overlap between those schemas is what motivates consolidation.
+ * The fields every ride event carries. These repeat across all 12 fragmented
+ * schemas, which is the duplication consolidation gets rid of.
  */
 public abstract class BaseRideEvent {
 

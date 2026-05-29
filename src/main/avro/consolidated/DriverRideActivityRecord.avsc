@@ -72,7 +72,7 @@
       "doc": "Final fare amount in local currency. Populated only for COMPLETED events. Null for all other event types."
     },
     {
-      "name": "durationMinutes",
+      "name": "durationMins",
       "type": ["null", "int"],
       "default": null,
       "doc": "Actual ride duration in minutes. Populated only for COMPLETED events. Null for all other event types."

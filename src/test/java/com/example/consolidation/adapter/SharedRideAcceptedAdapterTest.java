@@ -8,10 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Demonstrates that RecordAdapter implementations are pure Java with no Flink dependency.
- * No framework setup, no Kafka, no cluster. Just a plain JUnit test.
- */
+/** Plain JUnit, no Kafka or Flink needed, since the adapter is plain Java. */
 class SharedRideAcceptedAdapterTest {
 
     private SharedRideAcceptedAdapter adapter;
@@ -77,7 +74,7 @@ class SharedRideAcceptedAdapterTest {
         DriverRideActivityRecord record = adapter.adapt("org-1", event);
 
         assertNull(record.getFareAmount(),       "fareAmount must be null for ACCEPTED events");
-        assertNull(record.getDurationMinutes(),  "durationMinutes must be null for ACCEPTED events");
+        assertNull(record.getDurationMins(),  "durationMins must be null for ACCEPTED events");
         assertNull(record.getDistanceKm(),       "distanceKm must be null for ACCEPTED events");
         assertNull(record.getCancellationReason(), "cancellationReason must be null for ACCEPTED events");
     }

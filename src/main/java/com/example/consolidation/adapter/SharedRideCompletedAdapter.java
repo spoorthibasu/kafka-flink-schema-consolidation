@@ -22,7 +22,7 @@ public class SharedRideCompletedAdapter
         record.setEventType(EventType.COMPLETED);
         record.setRideType(RideType.SHARED);
         record.setFareAmount(event.getFareAmount());
-        record.setDurationMinutes(event.getDurationMinutes());
+        record.setDurationMins(event.getDurationMins());
         record.setDistanceKm(event.getDistanceKm());
 
         SharedRideAttributes attrs = new SharedRideAttributes();

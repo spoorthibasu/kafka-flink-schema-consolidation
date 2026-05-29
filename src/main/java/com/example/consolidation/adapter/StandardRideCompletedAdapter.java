@@ -26,7 +26,7 @@ public class StandardRideCompletedAdapter
         attrs.setSurgeMultiplier(event.getSurgeMultiplier());
         record.setStandardRideAttributes(attrs);
         record.setFareAmount(event.getFareAmount());
-        record.setDurationMinutes(event.getDurationMinutes());
+        record.setDurationMins(event.getDurationMins());
         record.setDistanceKm(event.getDistanceKm());
         return record;
     }

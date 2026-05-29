@@ -1,0 +1,8 @@
+# Single-node Kafka for running the job locally.
+#   docker compose up -d
+services:
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: kfsc-kafka
+    ports:
+      - "9092:9092"
