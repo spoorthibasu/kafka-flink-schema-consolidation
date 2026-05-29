@@ -104,45 +104,17 @@ public class ConsolidationAdapter implements MapFunction<Map<String, Object>, Dr
 ## Repository structure
 
 ```
-src/
-  main/
-    avro/
-      fragmented/                         # Before: 12 separate schemas, one per variant
-        DriverRideAcceptedStandard.avsc
-        DriverRideAcceptedShared.avsc
-        DriverRideAcceptedScheduled.avsc
-        ... (and 9 more for STARTED, COMPLETED, CANCELLED x 3 ride types)
-      consolidated/                       # After: one schema for all variants
-        DriverRideActivityRecord.avsc
-    java/com/example/consolidation/
-      events/                             # 12 typed source event classes
-        BaseRideEvent.java
-        DriverRideAcceptedStandardEvent.java
-        DriverRideAcceptedSharedEvent.java
-        DriverRideAcceptedScheduledEvent.java
-        ... (and 9 more for STARTED, COMPLETED, CANCELLED x 3 ride types)
-      adapter/
-        RecordAdapter.java                # Interface: adapt(orgId, event) -> DriverRideActivityRecord
-        AdapterRegistry.java             # Maps (EventType, RideType) to the right adapter
-        RawRideEventDeserializer.java    # Kafka bytes -> event map
-        ConsolidationAdapter.java        # Flink MapFunction, delegates to registry
-        DriverRideActivityRecord.java    # Output POJO matching the Avro schema
-        StandardRideAttributes.java
-        SharedRideAttributes.java
-        ScheduledRideAttributes.java
-        StandardRideAcceptedAdapter.java
-        SharedRideAcceptedAdapter.java
-        ScheduledRideAcceptedAdapter.java
-        ... (and 9 more adapters)
-      model/
-        EventType.java                   # Enum: ACCEPTED, STARTED, COMPLETED, CANCELLED
-        RideType.java                    # Enum: STANDARD, SHARED, SCHEDULED
-      job/
-        RideActivityConsolidationJob.java
-  test/
-    java/com/example/consolidation/adapter/
-      SharedRideAcceptedAdapterTest.java  # Tests the adapter in isolation, no Flink needed
-      AdapterRegistryTest.java           # Verifies all 12 combinations route correctly
+src/main/avro/
+  fragmented/      # Before: 12 separate schemas, one per variant
+  consolidated/    # After: one schema for all variants
+
+src/main/java/com/example/consolidation/
+  events/          # typed source events (plus a shared BaseRideEvent)
+  adapter/         # the 12 adapters, the registry, the deserializer, and the output record
+  model/           # the EventType and RideType discriminators
+  job/             # RideActivityConsolidationJob, the Flink entry point
+
+src/test/          # adapter and registry tests, no infrastructure needed
 ```
 
 ## Consolidated Avro schema
